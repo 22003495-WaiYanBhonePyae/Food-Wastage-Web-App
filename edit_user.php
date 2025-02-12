@@ -1,11 +1,12 @@
 <?php
 session_start();
 
-// Check if the user is logged in; if not, redirect to the login page
+// Check if the user is logged in; you might also want to verify the user is an admin.
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
+
 
 $current_user_id = $_SESSION['user_id'];
 
@@ -29,7 +30,8 @@ $alertType = ""; // Use "alert-danger" for errors and "alert-success" for succes
 if (isset($_GET['id'])) {
     $user_id = $_GET['id'];
 
-    $sql  = "SELECT * FROM users WHERE id = ?";
+    // Only select fields that are safe to show; note that we don’t retrieve the password.
+    $sql  = "SELECT id, username, email, is_admin FROM users WHERE id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -51,15 +53,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Retrieve and trim form fields
     $username = trim($_POST['username']);
     $email    = trim($_POST['email']);
+    // If left blank, the password will remain unchanged.
     $password = trim($_POST['password']);
     $is_admin = isset($_POST['is_admin']) ? (int)$_POST['is_admin'] : 0;
 
-    // Server-side validation for empty fields and password length
-    if (empty($username) || empty($email) || empty($password)) {
-        $message   = "Please fill in all required fields.";
-        $alertType = "alert-danger";
-    } elseif (strlen($password) < 8) {
-        $message   = "Password must be at least 8 characters long.";
+    // Server-side validation for username and email
+    if (empty($username) || empty($email)) {
+        $message   = "Please fill in all required fields (username and email).";
         $alertType = "alert-danger";
     } else {
         // Check for duplicate email (exclude the current user)
@@ -73,22 +73,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $message   = "Email already exists.";
             $alertType = "alert-danger";
         } else {
-            // Prepare the update query
-            $sqlUpdate = "UPDATE users SET username = ?, email = ?, password = ?, is_admin = ? WHERE id = ?";
-            $stmtUpdate = $conn->prepare($sqlUpdate);
-            $stmtUpdate->bind_param("sssii", $username, $email, $password, $is_admin, $user_id);
+            // If a new password is provided, validate and hash it before updating.
+            if (!empty($password)) {
+                if (strlen($password) < 8) {
+                    $message   = "Password must be at least 8 characters long.";
+                    $alertType = "alert-danger";
+                } else {
+                    // Hash the new password
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-            if ($stmtUpdate->execute()) {
-                $message   = "User updated successfully.";
-                $alertType = "alert-success";
-                // Update the user array for form re-population
-                $user['username'] = $username;
-                $user['email']    = $email;
-                $user['password'] = $password;
-                $user['is_admin'] = $is_admin;
+                    // Prepare the update query including the password update
+                    $sqlUpdate = "UPDATE users SET username = ?, email = ?, password = ?, is_admin = ? WHERE id = ?";
+                    $stmtUpdate = $conn->prepare($sqlUpdate);
+                    $stmtUpdate->bind_param("sssii", $username, $email, $hashed_password, $is_admin, $user_id);
+                    
+                    if ($stmtUpdate->execute()) {
+                        $message   = "User updated successfully.";
+                        $alertType = "alert-success";
+                        // Update the user array for form re-population
+                        $user['username'] = $username;
+                        $user['email']    = $email;
+                        $user['is_admin'] = $is_admin;
+                    } else {
+                        $message   = "Error updating user: " . $conn->error;
+                        $alertType = "alert-danger";
+                    }
+                }
             } else {
-                $message   = "Error updating user: " . $conn->error;
-                $alertType = "alert-danger";
+                // No new password was entered, so update only the username, email, and is_admin fields.
+                $sqlUpdate = "UPDATE users SET username = ?, email = ?, is_admin = ? WHERE id = ?";
+                $stmtUpdate = $conn->prepare($sqlUpdate);
+                $stmtUpdate->bind_param("ssii", $username, $email, $is_admin, $user_id);
+                
+                if ($stmtUpdate->execute()) {
+                    $message   = "User updated successfully.";
+                    $alertType = "alert-success";
+                    $user['username'] = $username;
+                    $user['email']    = $email;
+                    $user['is_admin'] = $is_admin;
+                } else {
+                    $message   = "Error updating user: " . $conn->error;
+                    $alertType = "alert-danger";
+                }
             }
         }
     }
@@ -183,19 +209,20 @@ $conn->close();
         >
       </div>
       <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
+        <label for="password" class="form-label">
+          Password <small>(Leave blank to keep the current password)</small>
+        </label>
         <div class="input-group">
           <input
             type="password"
             class="form-control"
             id="password"
             name="password"
-            value="<?php echo htmlspecialchars($user['password'] ?? ''); ?>"
-            required
+            placeholder="Enter new password if you want to change it"
           >
           <span class="input-group-text" id="togglePassword">👁️</span>
         </div>
-        <small class="text-muted">Password must be at least 8 characters long.</small>
+        <small class="text-muted">Password must be at least 8 characters long if provided.</small>
       </div>
       <div class="mb-3">
         <label for="is_admin" class="form-label">User Role</label>
@@ -215,10 +242,10 @@ $conn->close();
       let passwordField = document.getElementById("password");
       if (passwordField.type === "password") {
         passwordField.type = "text";
-        this.textContent = "🙈"; // Change icon to indicate hiding
+        this.textContent = "🙈"; // Icon changes to indicate hiding
       } else {
         passwordField.type = "password";
-        this.textContent = "👁️"; // Change icon to indicate showing
+        this.textContent = "👁️"; // Icon changes to indicate showing
       }
     });
   </script>

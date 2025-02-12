@@ -21,7 +21,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Input Validation
     if (empty($email) || empty($pass)) {
-        $message = "Error: Email and password are required!";
+        $_SESSION['message'] = "❌ Error: Email and password are required!";
+        header("Location: login.php");
+        exit();
     } else {
         // Use Prepared Statement to Prevent SQL Injection
         $stmt = $conn->prepare("SELECT id, username, password, is_admin FROM users WHERE email = ?");
@@ -33,8 +35,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->bind_result($id, $username, $hashed_pass, $is_admin);
             $stmt->fetch();
 
-            // Directly compare the entered password with the stored password
-            if ($pass === $hashed_pass) {
+            // ✅ Correct way: Use password_verify() to check hashed password
+            if (password_verify($pass, $hashed_pass)) {
                 // Store user details in session
                 $_SESSION['user_id'] = $id;
                 $_SESSION['username'] = $username;
@@ -48,10 +50,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
                 exit();
             } else {
-                $message = "Invalid password. Please try again.";
+                $_SESSION['message'] = "⚠️ Invalid password. Please try again.";
+                header("Location: login.php");
+                exit();
             }
         } else {
-            $message = "No account found with that email.";
+            $_SESSION['message'] = "⚠️ No account found with that email.";
+            header("Location: login.php");
+            exit();
         }
 
         $stmt->close();
@@ -60,9 +66,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 $conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -74,7 +80,11 @@ $conn->close();
 <body>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const message = "<?php echo isset($message) ? htmlspecialchars($message, ENT_QUOTES, 'UTF-8') : ''; ?>";
+            const message = "<?php echo isset($_SESSION['message']) ? htmlspecialchars($_SESSION['message'], ENT_QUOTES, 'UTF-8') : ''; ?>";
+            
+            // Clear PHP session message
+            <?php unset($_SESSION['message']); ?>
+
             if (message) {
                 const modalHTML = `
                     <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
@@ -111,5 +121,4 @@ $conn->close();
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

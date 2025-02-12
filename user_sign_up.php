@@ -50,12 +50,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     $check_stmt->close();
 
+    // Hash the Password before storing it
+    $hashed_password = password_hash($pass, PASSWORD_BCRYPT);
+
     // Assign Role
     $is_admin = 0;
 
     // Use Prepared Statements to Prevent SQL Injection
     $stmt = $conn->prepare("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("sssi", $user, $email, $pass, $is_admin);
+    $stmt->bind_param("sssi", $user, $email, $hashed_password, $is_admin);
 
     if ($stmt->execute()) {
         echo json_encode(["status" => "success", "message" => "🎉 Account created successfully! You can now log in."]);

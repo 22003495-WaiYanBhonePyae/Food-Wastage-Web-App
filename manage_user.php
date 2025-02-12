@@ -1,4 +1,6 @@
 <?php
+session_start(); // Start session to track logged-in admin
+
 // Database connection
 $servername = "localhost";
 $username = "root";
@@ -15,32 +17,44 @@ if ($conn->connect_error) {
 // Initialize message variable
 $message = "";
 
+// Get the logged-in admin ID
+$logged_in_admin_id = $_SESSION['user_id'] ?? 0; // Ensure session is set
+
 // Handle delete request
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
 
-    // Retrieve the username before deletion
-    $sqlUser = "SELECT username FROM users WHERE id = ?";
-    $stmtUser = $conn->prepare($sqlUser);
-    $stmtUser->bind_param("i", $id);
-    $stmtUser->execute();
-    $resultUser = $stmtUser->get_result();
-    if ($resultUser->num_rows > 0) {
-        $row = $resultUser->fetch_assoc();
-        $usernameDeleted = $row['username'];
+    // Prevent the admin from deleting themselves
+    if ($id == $logged_in_admin_id) {
+        $message = "❌ You cannot delete your own account!";
     } else {
-        $usernameDeleted = "Unknown";
-    }
+        // Retrieve the username before deletion
+        $sqlUser = "SELECT username FROM users WHERE id = ?";
+        $stmtUser = $conn->prepare($sqlUser);
+        $stmtUser->bind_param("i", $id);
+        $stmtUser->execute();
+        $resultUser = $stmtUser->get_result();
+        
+        if ($resultUser->num_rows > 0) {
+            $row = $resultUser->fetch_assoc();
+            $usernameDeleted = $row['username'];
 
-    // First, delete related records in the food_wastage table
-    $conn->query("DELETE FROM food_wastage WHERE user_id = $id");
+            // First, delete related records in the food_wastage table
+            $conn->query("DELETE FROM food_wastage WHERE user_id = $id");
 
-    // Then, delete the user
-    $sqlDelete = "DELETE FROM users WHERE id = $id";
-    if ($conn->query($sqlDelete) === TRUE) {
-        $message = "User with name <strong>$usernameDeleted</strong> has been deleted successfully.";
-    } else {
-        $message = "Error deleting user: " . $conn->error;
+            // Then, delete the user
+            $sqlDelete = "DELETE FROM users WHERE id = ?";
+            $stmtDelete = $conn->prepare($sqlDelete);
+            $stmtDelete->bind_param("i", $id);
+
+            if ($stmtDelete->execute()) {
+                $message = "✅ User <strong>$usernameDeleted</strong> has been deleted successfully.";
+            } else {
+                $message = "❌ Error deleting user: " . $conn->error;
+            }
+        } else {
+            $message = "⚠️ User not found.";
+        }
     }
 }
 ?>
@@ -130,7 +144,6 @@ if (isset($_GET['delete'])) {
                     <tr>
                         <th>Username</th>
                         <th>Email</th>
-                        <th>Password</th>
                         <th>Role</th>
                         <th>Actions</th>
                     </tr>
@@ -146,13 +159,19 @@ if (isset($_GET['delete'])) {
                             echo "<tr>";
                             echo "<td>" . $row['username'] . "</td>";
                             echo "<td>" . $row['email'] . "</td>";
-                            // Displaying plain-text password (not recommended for production)
-                            echo "<td>" . $row['password'] . "</td>";
                             echo "<td>" . ($row['is_admin'] == 1 ? 'Admin' : 'User') . "</td>";
-                            echo "<td>
-                                    <a href='edit_user.php?id=" . $row['id'] . "' class='btn btn-primary btn-sm'>Edit</a>
-                                    <a href='manage_user.php?delete=" . $row['id'] . "' class='btn btn-danger btn-sm' onclick='return confirm(\"Are you sure you want to delete this user?\")'>Delete</a>
-                                  </td>";
+                            echo "<td>";
+                            
+                            // Prevent the logged-in admin from deleting themselves
+                            if ($row['id'] == $logged_in_admin_id) {
+                                echo "<a href='edit_user.php?id=" . $row['id'] . "' class='btn btn-primary btn-sm'>Edit</a> ";
+                                echo "<button class='btn btn-danger btn-sm' disabled>Cannot Delete</button>";
+                            } else {
+                                echo "<a href='edit_user.php?id=" . $row['id'] . "' class='btn btn-primary btn-sm'>Edit</a> ";
+                                echo "<a href='manage_user.php?delete=" . $row['id'] . "' class='btn btn-danger btn-sm' onclick='return confirm(\"Are you sure you want to delete this user?\")'>Delete</a>";
+                            }
+
+                            echo "</td>";
                             echo "</tr>";
                         }
                     } else {
@@ -162,10 +181,10 @@ if (isset($_GET['delete'])) {
                 </tbody>
             </table>
             <div class="text-center mt-4">
-                <a href="createUser.html" class="btn btn-outline-primary" style="color: white; background-color: #2e7d32; border-color: #2e7d32;">Add User</a>
+                <a href="createUser.html" class="btn btn-outline-primary">Add User</a>
             </div>
             <div class="text-center mt-4">
-                <a href="admin_dashboard.html" class="btn btn-outline-primary" style="color: white; background-color: #2e7d32; border-color: #2e7d32;">Back to Admin Dashboard</a>
+                <a href="admin_dashboard.html" class="btn btn-outline-primary">Back to Admin Dashboard</a>
             </div>
         </div>
     </div>
