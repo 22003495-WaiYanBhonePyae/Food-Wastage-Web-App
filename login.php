@@ -42,6 +42,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['username'] = $username;
                 $_SESSION['is_admin'] = $is_admin;
 
+                $stmt->close();
+
                 // Redirect based on user role
                 if ($is_admin == 1) {
                     header("Location: admin_dashboard.html");
@@ -60,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             exit();
         }
 
-        $stmt->close();
+        
     }
 }
 

@@ -3,7 +3,7 @@ session_start();
 
 // Check if the user is logged in
 if (!isset($_SESSION['user_id'])) {
-    die("<p>Error: User not logged in. <a href='login.php'>Login</a></p>");
+    die("<p>Error: User not logged in. <a href='login.html'>Login</a></p>");
 }
 
 $user_id = $_SESSION['user_id'];
