@@ -69,6 +69,10 @@ if (isset($_POST['submit'])) {
         die("<p>Error: Quantity and Price must be numbers! <a href='add_items.html'>Go back</a></p>");
     }
 
+    if (!ctype_digit($quantity)){
+        die("<p>Error: Quantity must be a whole number! <a href='add_items.html'>Go Back</a></p>");
+    }
+
     // Insert the data into the database using a prepared statement
     $stmt = $conn->prepare("INSERT INTO groceries (item_name, category, quantity, price, unit, expiry_date, user_id)
                             VALUES (?, ?, ?, ?, ?, ?, ?)");
