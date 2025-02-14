@@ -31,6 +31,7 @@
             padding: 10px 20px;
         }
 
+
         .container-fluid {
             display: flex;
             align-items: center;
@@ -165,7 +166,7 @@
     </div>
 
     <script>
-        // ✅ Food Wastage Form Functionality
+        //  Food Wastage Form Functionality
         document.addEventListener("DOMContentLoaded", async () => {
             const foodTypeSelect = document.getElementById("foodType");
             const groceryItemSelect = document.getElementById("groceryItem");
@@ -213,7 +214,7 @@
             });
         });
     
-        // ✅ Notification System (Separated for Clarity)
+        //Notification System (Separated for Clarity)
         document.addEventListener("DOMContentLoaded", async () => {
             const notificationBtn = document.getElementById("notificationBtn");
             const notificationDropdown = document.getElementById("notificationDropdown");
@@ -262,7 +263,7 @@
             fetchNotifications();
         });
     
-        // ✅ Function to Convert Units
+        // Function to Convert Units
         function convertUnit(unit) {
             return ["Unknown", "Kilogram (kg)", "Gram (g)", "Pieces", "Millilitre (ml)", "Litre (L)"][unit] || "Unknown Unit";
         }
